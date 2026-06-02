@@ -1,0 +1,23 @@
+{
+    "InputFile":            "",
+    "OutputFile":           "output/segments.txt",
+
+    "TargetSize_mm":        0.1,
+    "AutoScale":            true,
+
+    "LayerHeight_mm":       0.0005,
+    "FirstLayerZ_mm":       null,
+
+    "HatchSpacing_mm":      0.0003,
+
+    "ScanAngle_deg":        0,
+    "AngleIncrement_deg":   90,
+    "AngleMode":            "alternating",
+
+    "Serpentine":           true,
+    "OptimizePath":         true,
+
+    "CoordMode":            "centers",
+    "Margin_mm":            0.0,
+    "Tolerance_mm":         1e-9
+}
