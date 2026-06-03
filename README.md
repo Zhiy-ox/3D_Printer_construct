@@ -25,7 +25,8 @@ For a printable new-user guide, see [README.PDF](README.PDF).
   workflows.
 - `core/`: import, slicing, hatching, path ordering, and segment writing helpers.
 - `viz/`: 2D/3D preview and layer-comparison tools.
-- `gui/`: MATLAB GUI entry point.
+- `gui/`: MATLAB GUI entry point with `Height-map raster` and `Contour slicing`
+  workflow modes.
 - `examples/` and `tests/`: basic usage and output-format checks.
 - `tools/build_readme_pdf.py`: rebuilds the PDF user guide.
 

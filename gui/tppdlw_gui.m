@@ -12,7 +12,7 @@ function tppdlw_gui()
 %
 % Requires MATLAB R2020b+ (uifigure, uiaxes, uibutton, uilabel, etc.)
 %
-% See also: tppdlw_process, tppdlw_config
+% See also: tppdlw_process, tppdlw_config, heightmap_to_segments
 
     % ---- Paths ----
     rootDir = fileparts(fileparts(mfilename('fullpath')));
@@ -65,18 +65,19 @@ function tppdlw_gui()
         'FontColor', [0.45 0.45 0.45], ...
         'BackgroundColor', [0.94 0.95 0.96]);
     y = y - 34;
-    uibutton(leftPanel, 'Text', '📂  Browse STEP / STL...', ...
+    uibutton(leftPanel, 'Text', '📂  Browse File...', ...
         'Position', [10 y-26 leftW-20 28], ...
         'BackgroundColor', CLR_BTN1, 'FontColor', 'w', 'FontWeight', 'bold', ...
         'ButtonPushedFcn', @(~,~) cb_browse());
     y = y - 42;
 
     % ---- Card: Slicing ----
-    y = card(leftPanel, y, '  SLICING', CLR_HDR, 112);
-    [S.ui.targetSize, y] = nf(leftPanel, 'Target XY size (mm)', 0.1,  [1e-4 1000], y);
+    y = card(leftPanel, y, '  SLICING', CLR_HDR, 170);
+    [S.ui.targetSize, y] = nf(leftPanel, 'Target XY size (mm)', 1.005,  [1e-4 1000], y);
     [S.ui.autoScale,  y] = cb(leftPanel, 'Auto-scale model to target size', true, y);
     [S.ui.layerHt,    y] = nf(leftPanel, 'Layer height   (mm)', 5e-4, [1e-7 10],   y);
-    [S.ui.hatchSp,    y] = nf(leftPanel, 'Hatch spacing  (mm)', 3e-4, [1e-7 10],   y);
+    [S.ui.hatchSp,    y] = nf(leftPanel, 'Hatch spacing  (mm)', 4e-4, [1e-7 10],   y);
+    [S.ui.pixelPitch, y] = nf(leftPanel, 'Source pixel pitch', 6, [1e-12 1e12], y);
     y = y - 6;
 
     % ---- Card: Writing Direction ----
@@ -102,7 +103,7 @@ function tppdlw_gui()
     y = y - 6;
 
     % ---- Card: Offset ----
-    y = card(leftPanel, y, '  ORIGIN / OFFSET', CLR_HDR, 118);
+    y = card(leftPanel, y, '  ORIGIN / OFFSET', CLR_HDR, 140);
     [S.ui.centerOrigin,  y] = cb(leftPanel, 'Centre output at (0, 0)', false, y);
     [S.ui.offsetX,       y] = nf(leftPanel, 'Offset X (mm)', 0, [-1e4 1e4], y);
     [S.ui.offsetY,       y] = nf(leftPanel, 'Offset Y (mm)', 0, [-1e4 1e4], y);
@@ -135,8 +136,17 @@ function tppdlw_gui()
         'BackgroundColor', [0.88 0.89 0.90], 'FontColor', [0.3 0.3 0.3], ...
         'ValueChangedFcn', @(src,~) setViewMode(src, '3d'));
 
+    uilabel(fig, 'Text', 'Workflow:', ...
+        'Position', [rx+234 tbY+10 62 22], 'FontSize', 12);
+    S.ui.workflow = uidropdown(fig, ...
+        'Items', {'Height-map raster', 'Contour slicing'}, ...
+        'Value', 'Height-map raster', ...
+        'Position', [rx+298 tbY+8 148 28], ...
+        'FontSize', 11, ...
+        'ValueChangedFcn', @(~,~) updateWorkflowMode());
+
     % Layer navigation  ◀  [field] / [total]  ▶
-    navX0 = rx + 240;
+    navX0 = rx + 462;
     uilabel(fig, 'Text', 'Layer:', ...
         'Position', [navX0 tbY+10 48 22], 'FontSize', 12);
     S.ui.btnPrev = uibutton(fig, 'Text', '◀', ...
@@ -158,7 +168,7 @@ function tppdlw_gui()
     % Info label (segments / layers / scan length)
     S.ui.infoLabel = uilabel(fig, ...
         'Text', 'No data.  Run Preview or Generate.', ...
-        'Position', [navX0+235 tbY+10 max(20, rw-475) 22], ...
+        'Position', [navX0+235 tbY+10 max(20, rw-697) 22], ...
         'FontSize', 11, 'FontColor', [0.4 0.4 0.45]);
 
     % ---- Preview axes ----
@@ -217,9 +227,14 @@ function tppdlw_gui()
     % =========================================================================
 
     function cb_browse()
-        [fn, fp] = uigetfile( ...
-            {'*.step;*.stp;*.stl','CAD Files (*.step, *.stp, *.stl)';'*.*','All Files'}, ...
-            'Select 3D Model');
+        if isHeightmapMode()
+            filters = {'*.stl;*.csv;*.txt;*.tsv','Height-map Files (*.stl, *.csv, *.txt, *.tsv)';'*.*','All Files'};
+            titleText = 'Select Height-map STL or CSV';
+        else
+            filters = {'*.step;*.stp;*.stl','CAD Files (*.step, *.stp, *.stl)';'*.*','All Files'};
+            titleText = 'Select 3D Model';
+        end
+        [fn, fp] = uigetfile(filters, titleText);
         if isequal(fn, 0), return; end
         S.inputFile = fullfile(fp, fn);
         S.ui.fileEdit.Value = {S.inputFile};
@@ -250,6 +265,8 @@ function tppdlw_gui()
             'OffsetX_mm',         S.ui.offsetX.Value, ...
             'OffsetY_mm',         S.ui.offsetY.Value, ...
             'OffsetZ_mm',         S.ui.offsetZ.Value);
+        cfg.Workflow = S.ui.workflow.Value;
+        cfg.PixelPitch = S.ui.pixelPitch.Value;
     end
 
     % ---- Preview (no file write) ----
@@ -259,9 +276,7 @@ function tppdlw_gui()
         end
         setStatus('Computing toolpath...');  drawnow;
         try
-            cfg = buildCfg();
-            [F,V] = import_model(cfg.InputFile);
-            S.segments = build_toolpath(F, V, cfg);
+            S.segments = computeSegments(false, '');
             afterCompute();
             setStatus(sprintf('Preview ready — %d segments, %d layers.', ...
                 size(S.segments,1), S.nLayers));
@@ -281,9 +296,7 @@ function tppdlw_gui()
         outPath = fullfile(fp, fn);
         setStatus('Generating...');  drawnow;
         try
-            cfg = buildCfg();
-            cfg.OutputFile = outPath;
-            S.segments = tppdlw_process(cfg);
+            S.segments = computeSegments(true, outPath);
             afterCompute();
             setStatus(sprintf('Saved: %s  (%d segments, %d layers)', ...
                 fn, size(S.segments,1), S.nLayers));
@@ -325,13 +338,102 @@ function tppdlw_gui()
         if isequal(fn,0), return; end
         try
             cfg = buildCfg();
-            cfg = rmfield(cfg, {'InputFile', 'OutputFile'});
+            cfg = rmfield_if_present(cfg, {'InputFile', 'OutputFile'});
             fid = fopen(fullfile(fp,fn),'w');
             fprintf(fid, '%s', jsonencode(cfg, 'PrettyPrint', true));
             fclose(fid);
             setStatus(['Config saved: ' fn]);
         catch ME
             uialert(fig, ME.message, 'Error saving config');
+        end
+    end
+
+    function tf = isHeightmapMode()
+        tf = strcmpi(S.ui.workflow.Value, 'Height-map raster');
+    end
+
+    function updateWorkflowMode()
+        hm = isHeightmapMode();
+        if hm
+            S.ui.autoScale.Enable = 'off';
+            S.ui.pixelPitch.Enable = 'on';
+            S.ui.angleMode.Enable = 'off';
+            S.ui.scanAngle.Enable = 'off';
+            S.ui.angleIncr.Enable = 'off';
+            S.ui.optimizePath.Enable = 'off';
+            S.ui.traceContour.Enable = 'off';
+            S.ui.overrun.Enable = 'off';
+            setStatus('Height-map raster mode: direct height grid export, no contour intersections.');
+        else
+            S.ui.autoScale.Enable = 'on';
+            S.ui.pixelPitch.Enable = 'off';
+            S.ui.angleMode.Enable = 'on';
+            S.ui.scanAngle.Enable = 'on';
+            S.ui.angleIncr.Enable = 'on';
+            S.ui.optimizePath.Enable = 'on';
+            S.ui.traceContour.Enable = 'on';
+            S.ui.overrun.Enable = 'on';
+            setStatus('Contour slicing mode: general STL/STEP workflow.');
+        end
+    end
+
+    function segments = computeSegments(shouldWrite, outPath)
+        cfg = buildCfg();
+
+        if isHeightmapMode()
+            hm = read_heightmap_source(S.inputFile, ...
+                'PixelPitch', S.ui.pixelPitch.Value, ...
+                'Units', 'um');
+
+            [segments, info] = heightmap_to_segments(hm.Height, ...
+                'SourcePitch', hm.SourcePitch, ...
+                'TargetMaxXY', S.ui.targetSize.Value, ...
+                'HatchPitch_mm', S.ui.hatchSp.Value, ...
+                'LayerHeight_mm', S.ui.layerHt.Value, ...
+                'StageZConvention', true, ...
+                'WoodpileMode', true, ...
+                'Serpentine', S.ui.serpentine.Value, ...
+                'CoordMode', 'edges');
+
+            segments = applyGuiOutputTransforms(segments, ...
+                S.ui.centerOrigin.Value, S.ui.offsetX.Value, S.ui.offsetY.Value, S.ui.offsetZ.Value);
+
+            if shouldWrite
+                write_segments(segments, outPath, 6);
+            end
+
+            setStatus(sprintf('Height-map raster: %d x %d cells -> %d x %d grid, %d layers.', ...
+                info.SourceSize(2), info.SourceSize(1), info.OutputGridSize(2), info.OutputGridSize(1), info.LayerCount));
+        else
+            if shouldWrite
+                cfg.OutputFile = outPath;
+                segments = tppdlw_process(cfg);
+            else
+                [F,V] = import_model(cfg.InputFile);
+                segments = build_toolpath(F, V, cfg);
+            end
+        end
+    end
+
+    function segments = applyGuiOutputTransforms(segments, centerOrigin, offsetX, offsetY, offsetZ)
+        if isempty(segments), return; end
+        scanMask = abs(segments(:,3) - segments(:,6)) < 1e-12;
+        if centerOrigin && any(scanMask)
+            allX = [segments(scanMask,1); segments(scanMask,4)];
+            allY = [segments(scanMask,2); segments(scanMask,5)];
+            cx = (min(allX) + max(allX)) / 2;
+            cy = (min(allY) + max(allY)) / 2;
+            segments(:, [1 4]) = segments(:, [1 4]) - cx;
+            segments(:, [2 5]) = segments(:, [2 5]) - cy;
+        end
+        if offsetX ~= 0
+            segments(:, [1 4]) = segments(:, [1 4]) + offsetX;
+        end
+        if offsetY ~= 0
+            segments(:, [2 5]) = segments(:, [2 5]) + offsetY;
+        end
+        if offsetZ ~= 0
+            segments(:, [3 6]) = segments(:, [3 6]) + offsetZ;
         end
     end
 
@@ -496,6 +598,11 @@ function tppdlw_gui()
                 switch lower(f)
                     case 'targetsize_mm',      S.ui.targetSize.Value = v;
                     case 'autoscale',           S.ui.autoScale.Value = logical(v);
+                    case 'workflow'
+                        opts = S.ui.workflow.Items;
+                        hit = opts(strcmpi(opts, char(v)));
+                        if ~isempty(hit), S.ui.workflow.Value = hit{1}; end
+                    case 'pixelpitch',          S.ui.pixelPitch.Value = v;
                     case 'layerheight_mm',      S.ui.layerHt.Value = v;
                     case 'hatchspacing_mm',     S.ui.hatchSp.Value = v;
                     case 'scanangle_deg',       S.ui.scanAngle.Value = v;
@@ -516,12 +623,15 @@ function tppdlw_gui()
             catch
             end
         end
+        updateWorkflowMode();
     end
 
     function setStatus(msg)
         S.ui.statusBar.Text = msg;
         drawnow;
     end
+
+    updateWorkflowMode();
 end
 
 % ==========================================================================
@@ -566,4 +676,12 @@ function [ctrl, yOut] = cb(parent, lbl, defVal, y)
     ctrl = uicheckbox(parent, 'Text', lbl, 'Value', defVal, ...
         'Position', [14 y-20 280 20], 'FontSize', 11);
     yOut = y - dy;
+end
+
+function s = rmfield_if_present(s, names)
+    for k = 1:numel(names)
+        if isfield(s, names{k})
+            s = rmfield(s, names{k});
+        end
+    end
 end
