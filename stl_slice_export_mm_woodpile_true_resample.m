@@ -20,16 +20,16 @@
 %   - Safer Z plane placement and scanline index rounding.
 
 % ========================= USER PARAMETERS (mm) =========================
-STLPath      = 'final_lut_height_map_6um_pixel_exact_base2um.stl';
-OutTxt       = 'final_lut_height_map_6um_pixel_exact_base2um.txt';   % tab-separated text
+STLPath      = fullfile('examples','models','final_lut_height_map_6um_pixel_exact_base0p5um.stl');
+OutTxt       = fullfile('output','Final_YH_05um.txt');   % tab-separated text
 
 % Footprint & in-plane resolution (mm)
-TargetMaxXY  = 1;          % scalar max XY span, or [maxX maxY] fit box
-XYPitch      = 0.0005;     % grid pitch (0.001 mm = 1 um)
+TargetMaxXY  = 1.005;      % scalar max XY span, or [maxX maxY] fit box
+XYPitch      = 0.0004;     % grid pitch / hatch spacing (0.0004 mm = 0.4 um)
 SquareGrid   = true;       % force Nx==Ny (recommended for woodpile)
 
 % Vertical slicing (mm)
-DZ           = 0.0004;     % slice thickness (mm)
+DZ           = 0.0005;     % slice thickness (0.0005 mm = 0.5 um)
 
 % Layer direction & path controls
 WoodpileMode = true;       % TRUE orthogonal resampling (overrides SwapXYOnOdd)
@@ -43,6 +43,7 @@ OptimizeMaxSegments = 15000;
 
 % Z values in file
 ZAsIndex     = false;      % false: physical Z in mm; true: layer indices (1..nLayers)
+StageZConvention = true;   % true: write physical Z as negative stage motion
 
 % Coordinate placement along runs
 % 'centers' -> follow grid centers (recommended)
@@ -56,6 +57,7 @@ TargetMaxDim = [];         % final max(X,Y,Z) span; used only if TargetMaxXY emp
 % Misc
 Margin       = 0.0;        % extra XY padding (mm)
 Tol          = 1e-9;       % geometric tolerance (mm)
+OutputSignificantDigits = 6; % compact TXT output, e.g. 0.0002
 
 % Progress reminders
 Verbose              = true;
@@ -76,6 +78,8 @@ try
 
     assert(DZ > 0, 'DZ must be > 0 (mm)');
     assert(XYPitch > 0, 'XYPitch must be > 0 (mm)');
+    assert(OutputSignificantDigits >= 4 && OutputSignificantDigits <= 15, 'OutputSignificantDigits must be between 4 and 15.');
+    OutputSignificantDigits = round(OutputSignificantDigits);
     assert(ischar(CoordMode) || isstring(CoordMode), 'CoordMode must be centers or edges.');
     CoordMode = char(CoordMode);
     assert(any(strcmpi(CoordMode, {'centers','edges'})), 'CoordMode must be centers or edges.');
@@ -220,7 +224,13 @@ try
         % 3) Build layer segments with correct Z
         segL = zeros(0,6);
         if ~isempty(X1mm)
-            Zval = L; if ~ZAsIndex, Zval = z; end
+            Zval = L;
+            if ~ZAsIndex
+                Zval = z;
+                if StageZConvention
+                    Zval = -Zval;
+                end
+            end
             Z1mm = repmat(Zval, size(X1mm));
             Z2mm = Z1mm;
             segL = [X1mm(:) Y1mm(:) Z1mm(:)  X2mm(:) Y2mm(:) Z2mm(:)];
@@ -251,6 +261,10 @@ try
                 ZcurVal = L;       ZnxtVal = L + 1;
             else
                 ZcurVal = z;       ZnxtVal = z_next;
+                if StageZConvention
+                    ZcurVal = -ZcurVal;
+                    ZnxtVal = -ZnxtVal;
+                end
             end
             outCell = outCell + 1;
             segments_all{outCell,1} = [lastXY(1) lastXY(2) ZcurVal,  lastXY(1) lastXY(2) ZnxtVal];
@@ -276,14 +290,15 @@ try
     fidw = fopen(OutTxt,'w');
     assert(fidw>=0, 'Cannot open output file: %s', OutTxt);
     cleanupFile = onCleanup(@() fclose(fidw));
-    fmt = '%.10g\t%.10g\t%.10g\t%.10g\t%.10g\t%.10g\n';
+    valueFmt = sprintf('%%.%dg', OutputSignificantDigits);
+    fmt = [valueFmt '\t' valueFmt '\t' valueFmt '\t' valueFmt '\t' valueFmt '\t' valueFmt '\n'];
     fprintf(fidw, fmt, Segments_mm.');
     clear cleanupFile;
 
     % ---- Report ----
     fprintf('Export (mm) complete: TRUE woodpile resampling, serpentine=%d, greedy=%d.\n', Serpentine, OptimizePath);
     fprintf(' Grid: Nx=%d, Ny=%d, layers=%d\n', Nx, Ny, nLayers);
-    fprintf(' Target XY: %s ; pitch=%.10g mm ; DZ=%.10g mm\n', format_target(TargetMaxXY), XYPitch, DZ);
+    fprintf(' Target XY: %s ; pitch=%.10g mm ; DZ=%.10g mm ; stageZ=%d\n', format_target(TargetMaxXY), XYPitch, DZ, StageZConvention);
     fprintf(' Contour segments checked into runs: %d ; raster runs: %d\n', totalContours, totalRuns);
     fprintf(' Layer writing rows: %d ; Z-hop rows: %d\n', totalLayerRows, max(0,nLayers-1));
     if totalOddScanlines > 0

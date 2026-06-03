@@ -300,7 +300,9 @@ run('stl_slice_export_mm_woodpile_true_resample.m')
                 ("Serpentine", "Alternates scan direction to reduce travel.", "Usually true."),
                 ("OptimizePath", "Greedy nearest-neighbor segment ordering.", "Can be expensive; capped by OptimizeMaxSegments."),
                 ("OptimizeMaxSegments", "Skips greedy ordering above this per-layer row count.", "Default 15000; lower it for speed."),
+                ("TraceContour", "Writes boundary outline segments before hatch fill.", "Keep false for height-map raster exports."),
                 ("CoordMode", "Uses grid centers or voxel edges for segment endpoints.", "Use centers unless your printer ignores point-like writes."),
+                ("OutputSignificantDigits", "Controls compact TXT numeric precision.", "Default 6 keeps values like 0.0002 readable."),
                 ("Tol", "Geometric tolerance in mm.", "Default is usually fine."),
             ],
             styles,
@@ -324,6 +326,12 @@ preview_3d(segments, 'EveryN', 2)
         p(
             "Before sending a file to the printer, check for long strokes that cross empty space, out-of-bounds coordinates, unexpected zero-length rows, and unusually high segment counts on one layer.",
             styles["BodyCustom"],
+        )
+    )
+    story.append(
+        p(
+            "If the first rows are short fragments along a boundary such as X = 0, contour tracing is enabled. Keep TraceContour and ContourFirst false for height-map raster exports so the file starts with hatch-fill rows.",
+            styles["Callout"],
         )
     )
     story.append(

@@ -16,6 +16,9 @@
 
     "Serpentine":           true,
     "OptimizePath":         true,
+    "TraceContour":         false,
+    "ContourFirst":         false,
+    "OutputSignificantDigits": 6,
 
     "CoordMode":            "centers",
     "Margin_mm":            0.0,

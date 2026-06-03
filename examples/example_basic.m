@@ -37,7 +37,10 @@ cfg = tppdlw_config(...
     ...
     ... % ---- Path Optimization ----
     'Serpentine',         true, ...      % Boustrophedon scan
-    'OptimizePath',       true ...       % Nearest-neighbor reorder
+    'OptimizePath',       true, ...      % Nearest-neighbor reorder
+    'TraceContour',       false, ...     % Hatch-only output; avoids boundary fragments
+    'ContourFirst',       false, ...
+    'OutputSignificantDigits', 6 ...     % Compact TXT formatting
 );
 
 %% ==================== RUN PIPELINE ====================

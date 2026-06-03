@@ -67,7 +67,7 @@ function segments_mm = tppdlw_process(cfg)
 
     % ---- Step 3: Write output ----
     fprintf('\n[3/3] Writing output...\n');
-    write_segments(segments_mm, cfg.OutputFile);
+    write_segments(segments_mm, cfg.OutputFile, cfg.OutputSignificantDigits);
 
     % ---- Summary ----
     fprintf('\n========================================\n');

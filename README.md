@@ -56,6 +56,9 @@ Edit the user parameters near the top of that file before production runs:
 - `WoodpileMode`: alternate horizontal and vertical writing by layer.
 - `OptimizePath`: enable greedy nearest-neighbor segment ordering.
 - `OptimizeMaxSegments`: skip expensive greedy ordering above this layer size.
+- `TraceContour`: keep `false` for height-map raster exports. Turning it on
+  writes boundary/outline rows before hatch rows.
+- `OutputSignificantDigits`: compact numeric precision for the TXT file.
 
 For preview runs, use a larger `XYPitch` and `DZ` so conversion finishes quickly.
 Restore final pitch/layer values only after the previewed layers look correct.
@@ -79,6 +82,11 @@ Check for:
 - out-of-bounds coordinates,
 - unusually high segment counts on a single layer,
 - console warnings about skipped odd scanlines or open contours.
+
+If the first rows are short fragments along `X = 0` or another boundary, contour
+tracing is probably enabled. Disable `TraceContour` / `ContourFirst` for the
+height-map workflow so the TXT starts with hatch-fill rows such as full-width
+base scanlines.
 
 The current converter skips unresolved odd scanlines instead of force-pairing
 them. This avoids false long write lines when an STL is open or non-manifold.

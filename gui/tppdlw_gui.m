@@ -97,7 +97,7 @@ function tppdlw_gui()
     y = card(leftPanel, y, '  PATH OPTIONS', CLR_HDR, 128);
     [S.ui.serpentine,    y] = cb(leftPanel, 'Serpentine scan (boustrophedon)', true,  y);
     [S.ui.optimizePath,  y] = cb(leftPanel, 'Optimize path (greedy NN)',       true,  y);
-    [S.ui.traceContour,  y] = cb(leftPanel, 'Trace contour before hatching',   true,  y);
+    [S.ui.traceContour,  y] = cb(leftPanel, 'Trace contour before hatching',   false, y);
     [S.ui.overrun,       y] = nf(leftPanel, 'Overrun (mm)', 0, [0 1], y);
     y = y - 6;
 

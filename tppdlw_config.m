@@ -31,9 +31,11 @@ function cfg = tppdlw_config(varargin)
 %   OptimizePath     : Greedy nearest-neighbor reordering     (default: true)
 %   OptimizeMaxSegments : Max layer segments for greedy path  (default: 15000)
 %
-%   TraceContour     : Trace boundary before hatching         (default: true)
+%   TraceContour     : Trace boundary before hatching         (default: false)
 %   ContourFirst     : true=contour then hatch; false=hatch only (default: true)
 %   Overrun_mm       : Extend scan lines beyond boundary      (default: 0)
+%
+%   OutputSignificantDigits : TXT numeric precision           (default: 6)
 %
 %   OffsetX_mm       : Shift entire output in X               (default: 0)
 %   OffsetY_mm       : Shift entire output in Y               (default: 0)
@@ -82,9 +84,10 @@ function cfg = tppdlw_config(varargin)
     cfg.OptimizeMaxSegments = 15000;    % Greedy ordering is O(N^2)
 
     % Contour + hatch mode
-    cfg.TraceContour     = true;       % Trace boundary outline
-    cfg.ContourFirst     = true;       % true = contour then hatch; false = hatch only
+    cfg.TraceContour     = false;      % Boundary tracing adds outline rows; keep hatch-only by default
+    cfg.ContourFirst     = true;       % Used only when TraceContour is true
     cfg.Overrun_mm       = 0;          % Extend scan line endpoints (mm)
+    cfg.OutputSignificantDigits = 6;   % Compact TXT output, e.g. 0.0002 instead of long decimals
 
     % Origin / offset control
     cfg.OffsetX_mm       = 0;          % Shift output X
@@ -138,6 +141,10 @@ function cfg = tppdlw_config(varargin)
     cfg.CoordMode = lower(cfg.CoordMode);
     assert(isnumeric(cfg.OptimizeMaxSegments) && isscalar(cfg.OptimizeMaxSegments) && ...
            cfg.OptimizeMaxSegments > 0, 'OptimizeMaxSegments must be a positive scalar.');
+    assert(isnumeric(cfg.OutputSignificantDigits) && isscalar(cfg.OutputSignificantDigits) && ...
+           cfg.OutputSignificantDigits >= 4 && cfg.OutputSignificantDigits <= 15, ...
+           'OutputSignificantDigits must be between 4 and 15.');
+    cfg.OutputSignificantDigits = round(cfg.OutputSignificantDigits);
     cfg.Tolerance_mm = max(cfg.Tolerance_mm, 1e-12);
 end
 
