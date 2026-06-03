@@ -287,7 +287,7 @@ try
     fprintf(' Contour segments checked into runs: %d ; raster runs: %d\n', totalContours, totalRuns);
     fprintf(' Layer writing rows: %d ; Z-hop rows: %d\n', totalLayerRows, max(0,nLayers-1));
     if totalOddScanlines > 0
-        warning('Encountered %d scanline(s) with odd contour-intersection counts. This can indicate an open/non-manifold STL or a slicing degeneracy.', totalOddScanlines);
+        warning('Skipped %d scanline(s) with unresolved odd contour-intersection counts. This can indicate an open/non-manifold STL or a slicing degeneracy.', totalOddScanlines);
     end
     if outOfBoundsRows > 0
         warning('Output contains %d row(s) with XY coordinates outside the generated grid bounds.', outOfBoundsRows);
@@ -421,7 +421,7 @@ for j = 1:Nx
 
     if mod(numel(yhit),2)==1
         oddScanlines = oddScanlines + 1;
-        yhit = yhit(1:end-1);
+        continue;
     end
     for k = 1:2:numel(yhit)
         ylo = yhit(k);
@@ -470,7 +470,7 @@ for irow = 1:Ny
 
     if mod(numel(xhit),2)==1
         oddScanlines = oddScanlines + 1;
-        xhit = xhit(1:end-1);
+        continue;
     end
     for k = 1:2:numel(xhit)
         xlo = xhit(k);

@@ -198,8 +198,16 @@ function [F, V] = read_stl_any(fname)
         % Binary STL: 50 bytes per face — 12 normal + 12+12+12 vertices + 2 attr.
         % Read entire face block in one call; typecast vertices directly.
         raw = fread(fid, nfaces * 50, 'uint8=>uint8');
+        if numel(raw) < nfaces * 50
+            error('import_model:truncatedSTL', ...
+                ['Binary STL is truncated: header declares %d faces ' ...
+                 '(%d bytes) but only %d bytes follow.'], ...
+                nfaces, nfaces * 50, numel(raw));
+        end
         raw = reshape(raw, 50, nfaces);        % 50 bytes per face (column-major)
         vraw = raw(13:48, :);                  % bytes 13-48: 9 float32 per face
+        % STL is little-endian; typecast uses native byte order (all supported
+        % MATLAB platforms are little-endian, matching the spec).
         Vlist = double(reshape(typecast(vraw(:), 'single'), 3, nfaces * 3).');
         [V, ~, ix] = unique(Vlist, 'rows', 'stable');
         F = reshape(ix, 3, []).';

@@ -75,8 +75,8 @@ function segments_mm = tppdlw_process(cfg)
     fprintf('  Total segments: %d\n', size(segments_mm, 1));
     fprintf('  Output file:    %s\n', cfg.OutputFile);
 
-    % Compute some stats
-    scanMask = abs(segments_mm(:,3) - segments_mm(:,6)) < 1e-10;
+    % Compute some stats (scan segments have z1 == z2; transitions differ by a layer)
+    scanMask = abs(segments_mm(:,3) - segments_mm(:,6)) < 1e-12;
     nScan = sum(scanMask);
     nTransition = sum(~scanMask);
     fprintf('  Scan segments:  %d\n', nScan);

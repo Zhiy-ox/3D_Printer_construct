@@ -5,6 +5,7 @@
 # Large CAD/source geometry and generated exports
 *.stl
 output/
+Pyramid_T*-SINGLE.txt
 *_segments.txt
 stl_slices_mm_woodpile*.tsv
 final_lut_height_map_6um_pixel_exact_base2um.txt
@@ -13,4 +14,3 @@ final_lut_height_map_6um_pixel_exact_base2um.txt
 *.mex*
 *.mat
 slprj/
-

@@ -103,6 +103,7 @@ function segs = hatch_layer(contour2d, angle_deg, hatch_spacing, bbox, coord_mod
     maxSegs = nLines * 10;
     segBuf = zeros(maxSegs, 4);
     segCount = 0;
+    unresolvedOddLines = 0;
 
     for li = 1:nLines
         yLine = yLines(li);
@@ -140,10 +141,12 @@ function segs = hatch_layer(contour2d, angle_deg, hatch_spacing, bbox, coord_mod
                 if mod(numel(xHitsJ), 2) == 0
                     xHits = xHitsJ;  % Use jittered result
                 else
-                    xHits = xHits(1:end-1);  % Fallback: drop last
+                    unresolvedOddLines = unresolvedOddLines + 1;
+                    continue;
                 end
             else
-                xHits = xHits(1:end-1);
+                unresolvedOddLines = unresolvedOddLines + 1;
+                continue;
             end
         end
 
@@ -175,6 +178,13 @@ function segs = hatch_layer(contour2d, angle_deg, hatch_spacing, bbox, coord_mod
     end
 
     rotSegs = segBuf(1:segCount, :);
+
+    if unresolvedOddLines > 0
+        warning('hatch_layer:oddScanlinesSkipped', ...
+            ['Skipped %d scanline(s) with unresolved odd contour crossings. ' ...
+             'This usually indicates open or non-manifold slice contours.'], ...
+            unresolvedOddLines);
+    end
 
     if segCount == 0
         segs = zeros(0, 4);

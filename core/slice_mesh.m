@@ -99,6 +99,13 @@ function layers = slice_mesh(F, V, zPlanes, tol)
             pA_x(maskAC) pA_y(maskAC) pC_x(maskAC) pC_y(maskAC); ...
             pB_x(maskBC) pB_y(maskBC) pC_x(maskBC) pC_y(maskBC)];
 
+        % Drop zero-length segments (plane grazing a shared vertex makes the two
+        % edge intersections coincide); the original per-triangle dedup did this.
+        if ~isempty(fastSegs)
+            fastLen2 = (fastSegs(:,1)-fastSegs(:,3)).^2 + (fastSegs(:,2)-fastSegs(:,4)).^2;
+            fastSegs = fastSegs(fastLen2 > tol^2, :);
+        end
+
         % ---- Slow path: degenerate triangles (vertex-on-plane, all 3 edges, etc.) ----
         degenIdx = find(~(maskAB | maskAC | maskBC));
         slowSegs = zeros(numel(degenIdx), 4);
