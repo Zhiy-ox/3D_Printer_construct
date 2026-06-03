@@ -21,6 +21,7 @@
     "OutputSignificantDigits": 6,
 
     "CoordMode":            "centers",
+    "StageZConvention":     true,
     "Margin_mm":            0.0,
     "Tolerance_mm":         1e-9
 }

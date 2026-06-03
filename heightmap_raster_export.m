@@ -24,7 +24,7 @@ DZ            = 0.0005;  % output layer height in mm
 WoodpileMode  = true;    % odd layers X-directed, even layers Y-directed
 Serpentine    = true;    % alternate direction on adjacent scanlines
 CoordMode     = 'edges'; % matches existing base rows: x = 0 ... 1.005
-StageZConvention = true; % write positive build height as negative stage Z
+StageZConvention = true; % true: -Z stage output; false: +Z output
 Tolerance_mm  = 1e-12;
 
 % TXT formatting

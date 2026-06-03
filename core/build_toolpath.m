@@ -25,6 +25,12 @@ function segments_mm = build_toolpath(F, V, cfg)
 % See also: tppdlw_process, slice_mesh, hatch_layer, trace_contour,
 %           order_serpentine, order_greedy, write_segments
 
+    if ~isfield(cfg, 'StageZConvention') || isempty(cfg.StageZConvention)
+        cfg.StageZConvention = true;
+    else
+        cfg.StageZConvention = logical(cfg.StageZConvention);
+    end
+
     % ---- Scaling ----
     if cfg.AutoScale && cfg.TargetSize_mm > 0
         spanX = max(V(:,1)) - min(V(:,1));
@@ -66,6 +72,7 @@ function segments_mm = build_toolpath(F, V, cfg)
         cfg.AngleMode, cfg.ScanAngle_deg, cfg.AngleIncrement_deg);
     fprintf('  Contour tracing: %s | Overrun: %.4g mm\n', ...
         bool2str(cfg.TraceContour && cfg.ContourFirst), cfg.Overrun_mm);
+    fprintf('  Stage Z convention: %s\n', bool2str(cfg.StageZConvention));
 
     % ---- Slice mesh ----
     layers = slice_mesh(F, V, zPlanes, cfg.Tolerance_mm);
@@ -184,11 +191,11 @@ function segments_mm = build_toolpath(F, V, cfg)
     end
 
     % ---- Invert Z to stage convention ----
-    % Geometry is sliced positive-up (first/bottom layer = smallest Z), but the
-    % DLW stage must travel in -Z to build higher. Negate Z so the bottom layer
-    % is least-negative and each higher layer is more negative; layer-to-layer
-    % Z-transition steps therefore move in -Z.
-    segments_mm(:, [3 6]) = -segments_mm(:, [3 6]);
+    % Geometry is sliced positive-up. Some stage controllers expect higher
+    % build layers as negative Z motion; keep that as the default.
+    if cfg.StageZConvention
+        segments_mm(:, [3 6]) = -segments_mm(:, [3 6]);
+    end
 
     % ---- Apply XYZ offsets ----
     if cfg.OffsetX_mm ~= 0

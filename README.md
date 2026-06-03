@@ -61,8 +61,13 @@ Edit the user parameters near the top of that file before production runs:
   generated STL header when available.
 - `BaseHeight`: support base height in source units. Use `0` when the STL
   already includes a base; use `0.5` for a CSV that needs a 0.5 um base.
+- `StageZConvention`: set `true` for negative stage Z, or `false` for positive
+  Z values such as `+0.00025`.
 - `CoordMode`: use `edges` to match full-width base rows like `0 ... 1.005`.
 - `OutputSignificantDigits`: compact numeric precision for the TXT file.
+
+In the GUI, use the small `Z -` / `Z +` button next to `Offset Z / sign`.
+`Z -` preserves the current negative stage convention; `Z +` writes positive Z.
 
 For preview runs, use a larger `XYPitch` and `DZ` so conversion finishes quickly.
 Restore final pitch/layer values only after the previewed layers look correct.

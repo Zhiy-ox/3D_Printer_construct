@@ -40,6 +40,7 @@ function cfg = tppdlw_config(varargin)
 %   OffsetX_mm       : Shift entire output in X               (default: 0)
 %   OffsetY_mm       : Shift entire output in Y               (default: 0)
 %   OffsetZ_mm       : Shift entire output in Z               (default: 0)
+%   StageZConvention : true=negative stage Z, false=positive Z (default: true)
 %   CenterOrigin     : Center XY at (0,0) before offset       (default: false)
 %
 %   CoordMode        : 'centers' | 'edges'                   (default: 'centers')
@@ -93,6 +94,7 @@ function cfg = tppdlw_config(varargin)
     cfg.OffsetX_mm       = 0;          % Shift output X
     cfg.OffsetY_mm       = 0;          % Shift output Y
     cfg.OffsetZ_mm       = 0;          % Shift output Z
+    cfg.StageZConvention = true;       % true: output build height as negative stage Z
     cfg.CenterOrigin     = false;      % Center XY at (0,0) before applying offset
 
     % Coordinates
@@ -145,6 +147,7 @@ function cfg = tppdlw_config(varargin)
            cfg.OutputSignificantDigits >= 4 && cfg.OutputSignificantDigits <= 15, ...
            'OutputSignificantDigits must be between 4 and 15.');
     cfg.OutputSignificantDigits = round(cfg.OutputSignificantDigits);
+    cfg.StageZConvention = logical(cfg.StageZConvention);
     cfg.Tolerance_mm = max(cfg.Tolerance_mm, 1e-12);
 end
 

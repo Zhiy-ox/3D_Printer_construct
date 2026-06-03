@@ -108,7 +108,21 @@ function tppdlw_gui()
     [S.ui.centerOrigin,  y] = cb(leftPanel, 'Centre output at (0, 0)', false, y);
     [S.ui.offsetX,       y] = nf(leftPanel, 'Offset X (mm)', 0, [-1e4 1e4], y);
     [S.ui.offsetY,       y] = nf(leftPanel, 'Offset Y (mm)', 0, [-1e4 1e4], y);
-    [S.ui.offsetZ,       y] = nf(leftPanel, 'Offset Z (mm)', 0, [-1e4 1e4], y);
+    uilabel(leftPanel, 'Text', 'Offset Z / sign', ...
+        'Position', [14 y-20 150 18], 'FontSize', 11);
+    S.ui.offsetZ = uieditfield(leftPanel, 'numeric', ...
+        'Value', 0, 'Limits', [-1e4 1e4], ...
+        'Position', [168 y-22 70 22], ...
+        'HorizontalAlignment', 'right', ...
+        'FontSize', 11, ...
+        'ValueDisplayFormat', '%.8g');
+    S.ui.zPositive = uibutton(leftPanel, 'state', ...
+        'Text', 'Z -', ...
+        'Value', false, ...
+        'Position', [244 y-22 44 22], ...
+        'FontSize', 11, ...
+        'ValueChangedFcn', @(~,~) updateZSignButton(true));
+    y = y - 28;
 
     % =========================================================================
     %  RIGHT PANEL — Preview
@@ -265,7 +279,8 @@ function tppdlw_gui()
             'CenterOrigin',       S.ui.centerOrigin.Value, ...
             'OffsetX_mm',         S.ui.offsetX.Value, ...
             'OffsetY_mm',         S.ui.offsetY.Value, ...
-            'OffsetZ_mm',         S.ui.offsetZ.Value);
+            'OffsetZ_mm',         S.ui.offsetZ.Value, ...
+            'StageZConvention',   ~S.ui.zPositive.Value);
         cfg.Workflow = S.ui.workflow.Value;
         cfg.PixelPitch = S.ui.pixelPitch.Value;
         cfg.BaseHeight = S.ui.baseHeight.Value;
@@ -395,7 +410,7 @@ function tppdlw_gui()
                 'BaseHeight', S.ui.baseHeight.Value, ...
                 'HatchPitch_mm', S.ui.hatchSp.Value, ...
                 'LayerHeight_mm', S.ui.layerHt.Value, ...
-                'StageZConvention', true, ...
+                'StageZConvention', ~S.ui.zPositive.Value, ...
                 'WoodpileMode', true, ...
                 'Serpentine', S.ui.serpentine.Value, ...
                 'CoordMode', 'edges');
@@ -488,9 +503,13 @@ function tppdlw_gui()
             S.uniqueZ  = [];
         else
             S.scanMask = abs(S.segments(:,3) - S.segments(:,6)) < 1e-12;
-            % Z is negated for stage convention, so the bottom (first-written)
-            % layer is the largest value. Sort descending => Layer 1 = bottom.
-            S.uniqueZ  = sort(unique(S.segments(S.scanMask, 3)), 'descend');
+            % Negative stage convention writes bottom as the largest Z
+            % (least negative). Positive Z writes bottom as the smallest Z.
+            if S.ui.zPositive.Value
+                S.uniqueZ = sort(unique(S.segments(S.scanMask, 3)), 'ascend');
+            else
+                S.uniqueZ = sort(unique(S.segments(S.scanMask, 3)), 'descend');
+            end
             S.nLayers  = numel(S.uniqueZ);
         end
         S.currentLayer = 1;
@@ -627,6 +646,12 @@ function tppdlw_gui()
                     case 'offsetx_mm',          S.ui.offsetX.Value = v;
                     case 'offsety_mm',          S.ui.offsetY.Value = v;
                     case 'offsetz_mm',          S.ui.offsetZ.Value = v;
+                    case 'stagezconvention'
+                        S.ui.zPositive.Value = ~logical(v);
+                        updateZSignButton(false);
+                    case {'zpositive','positivez'}
+                        S.ui.zPositive.Value = logical(v);
+                        updateZSignButton(false);
                 end
             catch
             end
@@ -639,7 +664,29 @@ function tppdlw_gui()
         drawnow;
     end
 
+    function updateZSignButton(announce)
+        if nargin < 1
+            announce = true;
+        end
+        if S.ui.zPositive.Value
+            S.ui.zPositive.Text = 'Z +';
+            S.ui.zPositive.BackgroundColor = CLR_BTN2;
+            S.ui.zPositive.FontColor = 'w';
+            if announce
+                setStatus('Z output sign: positive. Run Preview or Generate to apply.');
+            end
+        else
+            S.ui.zPositive.Text = 'Z -';
+            S.ui.zPositive.BackgroundColor = [0.94 0.95 0.96];
+            S.ui.zPositive.FontColor = [0.25 0.25 0.28];
+            if announce
+                setStatus('Z output sign: negative stage convention. Run Preview or Generate to apply.');
+            end
+        end
+    end
+
     updateWorkflowMode();
+    updateZSignButton(false);
 end
 
 % ==========================================================================
