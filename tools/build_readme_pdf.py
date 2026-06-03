@@ -221,8 +221,8 @@ def build():
     )
     story.append(
         p(
-            "<b>Recommended path:</b> use <font name='Courier'>stl_slice_export_mm_woodpile_true_resample.m</font> "
-            "for large STL height maps. Use the modular <font name='Courier'>tppdlw_process</font> pipeline "
+            "<b>Recommended path:</b> use <font name='Courier'>heightmap_raster_export.m</font> "
+            "for pixel-exact height-map STL/CSV files. Use the modular <font name='Courier'>tppdlw_process</font> pipeline "
             "for general STL/STEP workflows or the GUI.",
             styles["Callout"],
         )
@@ -232,7 +232,8 @@ def build():
     story.append(
         two_col_table(
             [
-                ("Fast converter", "<font name='Courier'>stl_slice_export_mm_woodpile_true_resample.m</font> - optimized STL height-map to TXT exporter."),
+                ("Height-map raster", "<font name='Courier'>heightmap_raster_export.m</font> - direct height-map STL/CSV to TXT exporter."),
+                ("Contour STL exporter", "<font name='Courier'>stl_slice_export_mm_woodpile_true_resample.m</font> - contour-slicing STL exporter for non-height-map cases."),
                 ("General pipeline", "<font name='Courier'>tppdlw_process.m</font> plus <font name='Courier'>core/</font> helpers for STL/STEP imports and arbitrary scan angles."),
                 ("Preview tools", "<font name='Courier'>viz/preview_toolpath.m</font>, <font name='Courier'>viz/preview_3d.m</font>, and layer comparison tools."),
                 ("Examples/tests", "<font name='Courier'>examples/</font> and <font name='Courier'>tests/</font> show basic usage and expected output format."),
@@ -248,7 +249,7 @@ def build():
         code(
             """
 cd('/path/to/3D_Printer_construct')
-run('stl_slice_export_mm_woodpile_true_resample.m')
+run('heightmap_raster_export.m')
 """,
             styles,
         )
@@ -256,10 +257,10 @@ run('stl_slice_export_mm_woodpile_true_resample.m')
     story.append(
         bullets(
             [
-                "Set <font name='Courier'>STLPath</font> to your input STL file.",
+                "Set <font name='Courier'>HeightMapPath</font> to your input height-map STL or CSV file.",
                 "Set <font name='Courier'>OutTxt</font> to the TXT file you want to create.",
                 "Start with coarse <font name='Courier'>XYPitch</font> and <font name='Courier'>DZ</font> for preview runs, then restore final values for production.",
-                "Read the console summary. Warnings about skipped odd scanlines usually mean the STL has open or non-manifold contours.",
+                "Read the console summary. Height-map raster export should not report odd contour-crossing warnings.",
             ],
             styles,
         )
@@ -279,7 +280,7 @@ run('stl_slice_export_mm_woodpile_true_resample.m')
                 "Rows where <font name='Courier'>Z1 == Z2</font> are scan/write segments.",
                 "Rows where <font name='Courier'>Z1 != Z2</font> are layer-to-layer Z moves.",
                 "Coordinates are in millimeters.",
-                "The modular pipeline negates Z for stage convention; the standalone exporter can write physical Z or layer indices depending on <font name='Courier'>ZAsIndex</font>.",
+                "The height-map raster exporter writes positive build height as negative stage Z when <font name='Courier'>StageZConvention</font> is true.",
             ],
             styles,
         )
@@ -290,20 +291,18 @@ run('stl_slice_export_mm_woodpile_true_resample.m')
     story.append(
         param_table(
             [
-                ("STLPath", "Input STL file to convert.", "Use a watertight STL when possible."),
+                ("HeightMapPath", "Input height-map STL or CSV file.", "Use this path for pixel-exact height maps."),
                 ("OutTxt", "Destination tab-separated TXT file.", "Use <font name='Courier'>output/name.txt</font> for generated files."),
                 ("TargetMaxXY", "Scales the model to a target XY footprint in mm.", "Scalar for square fit, or [maxX maxY]."),
                 ("XYPitch", "Spacing between adjacent raster scanlines.", "Larger for preview, final value for production."),
                 ("DZ", "Layer thickness / vertical slicing step.", "Larger for preview, final value for production."),
-                ("SquareGrid", "Forces equal X/Y grid counts.", "Recommended for woodpile-style output."),
+                ("PixelPitch", "Source pixel pitch for CSV input.", "STL can read this from the generated header."),
                 ("WoodpileMode", "Alternates horizontal and vertical writing by layer.", "Keep true for orthogonal resampling."),
                 ("Serpentine", "Alternates scan direction to reduce travel.", "Usually true."),
-                ("OptimizePath", "Greedy nearest-neighbor segment ordering.", "Can be expensive; capped by OptimizeMaxSegments."),
-                ("OptimizeMaxSegments", "Skips greedy ordering above this per-layer row count.", "Default 15000; lower it for speed."),
-                ("TraceContour", "Writes boundary outline segments before hatch fill.", "Keep false for height-map raster exports."),
-                ("CoordMode", "Uses grid centers or voxel edges for segment endpoints.", "Use centers unless your printer ignores point-like writes."),
+                ("CoordMode", "Uses voxel edges or grid centers for endpoints.", "Use edges for full-width base rows."),
+                ("StageZConvention", "Writes positive build height as negative stage Z.", "Usually true for the printer stage convention."),
                 ("OutputSignificantDigits", "Controls compact TXT numeric precision.", "Default 6 keeps values like 0.0002 readable."),
-                ("Tol", "Geometric tolerance in mm.", "Default is usually fine."),
+                ("Tolerance_mm", "Height comparison tolerance in mm.", "Default is usually fine."),
             ],
             styles,
         )
@@ -330,13 +329,13 @@ preview_3d(segments, 'EveryN', 2)
     )
     story.append(
         p(
-            "If the first rows are short fragments along a boundary such as X = 0, contour tracing is enabled. Keep TraceContour and ContourFirst false for height-map raster exports so the file starts with hatch-fill rows.",
+            "If the first rows are short fragments along a boundary such as X = 0, a contour-slicing workflow is being used. Use heightmap_raster_export.m for pixel-exact height-map data so the file starts with hatch-fill rows.",
             styles["Callout"],
         )
     )
     story.append(
         p(
-            "<b>Important:</b> the current converter skips unresolved odd scanlines instead of force-pairing them. This prevents false long write lines. If many scanlines are skipped, repair the STL or use a height-map raster workflow.",
+            "<b>Important:</b> the contour-slicing fallback skips unresolved odd scanlines instead of force-pairing them. For pixel-exact height maps, prefer the raster workflow so contour crossings are not used at all.",
             styles["Callout"],
         )
     )
@@ -347,9 +346,9 @@ preview_3d(segments, 'EveryN', 2)
                 p("6. Troubleshooting", styles["H1Custom"]),
                 two_col_table(
                     [
-                        ("Long lines across empty regions", "Usually caused by open/non-manifold STL contours. The safe behavior is to skip odd scanlines and warn. Repair the STL or use height-map rasterization."),
-                        ("Very slow conversion", "Increase <font name='Courier'>XYPitch</font> and <font name='Courier'>DZ</font> for preview, lower <font name='Courier'>OptimizeMaxSegments</font>, or disable greedy path optimization."),
-                        ("Missing small features", "Check whether <font name='Courier'>XYPitch</font> or <font name='Courier'>DZ</font> is too coarse. Also check for skipped odd scanlines."),
+                        ("Long lines across empty regions", "Usually caused by using contour slicing on height-map data. Use height-map raster export first."),
+                        ("Very slow conversion", "Increase <font name='Courier'>XYPitch</font> and <font name='Courier'>DZ</font> for preview."),
+                        ("Missing small features", "Check whether <font name='Courier'>XYPitch</font> or <font name='Courier'>DZ</font> is too coarse."),
                         ("TXT is huge", "This is expected for fine pitch and large footprints. Keep generated TXT files under <font name='Courier'>output/</font> so Git ignores them."),
                         ("STL import fails", "Confirm the STL is binary or valid ASCII, not truncated, and that the file path is correct."),
                     ],
@@ -364,7 +363,7 @@ preview_3d(segments, 'EveryN', 2)
         bullets(
             [
                 "<b>Preview pass:</b> use coarse pitch and layer height; generate quickly and inspect several layers.",
-                "<b>Geometry check:</b> look for warnings about skipped odd scanlines or open contours.",
+                "<b>Geometry check:</b> confirm the recovered height-map pitch, base height, and output span match the intended print.",
                 "<b>Final pass:</b> restore production <font name='Courier'>XYPitch</font> and <font name='Courier'>DZ</font>; regenerate TXT.",
                 "<b>Visual QA:</b> preview first, middle, and last layers; check that no scanline crosses empty space.",
                 "<b>Archive:</b> commit code/config changes, not large generated files. Keep STL/TXT outputs ignored unless you intentionally need to version them.",
@@ -377,9 +376,9 @@ preview_3d(segments, 'EveryN', 2)
     story.append(
         two_col_table(
             [
-                ("[ ] Input STL is correct", "Right geometry, right units, expected bounding box."),
+                ("[ ] Height-map source is correct", "Right file, right units, expected base height and bounding box."),
                 ("[ ] Parameters reviewed", "Target size, XY pitch, DZ, coordinate mode, and output path are intentional."),
-                ("[ ] Console warnings reviewed", "No unexpected truncated STL, odd scanline, or out-of-bounds warnings."),
+                ("[ ] Console warnings reviewed", "No unexpected truncated STL, missing height-map cells, or out-of-bounds warnings."),
                 ("[ ] Layers previewed", "First, middle, and final layers look physically plausible."),
                 ("[ ] Output format checked", "TXT has six numeric columns and the expected number of layers."),
                 ("[ ] Generated files managed", "Large STL/TXT files are kept out of Git unless deliberately tracked."),
