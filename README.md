@@ -59,11 +59,35 @@ Edit the user parameters near the top of that file before production runs:
 - `WoodpileMode`: alternate horizontal and vertical writing by layer.
 - `PixelPitch`: source pixel pitch for CSV; STL files can read this from the
   generated STL header when available.
+- `BaseHeight`: support base height in source units. Use `0` when the STL
+  already includes a base; use `0.5` for a CSV that needs a 0.5 um base.
 - `CoordMode`: use `edges` to match full-width base rows like `0 ... 1.005`.
 - `OutputSignificantDigits`: compact numeric precision for the TXT file.
 
 For preview runs, use a larger `XYPitch` and `DZ` so conversion finishes quickly.
 Restore final pitch/layer values only after the previewed layers look correct.
+
+### Size, Pixel Pitch, And Base Height
+
+For height-map raster export there are three different pitches/sizes:
+
+- `PixelPitch` is the original source pixel spacing, in the same units as the
+  height map. For your original CSV, this is `6` because each pixel is 6 um.
+- `TargetMaxXY` controls the final printed XY footprint in millimeters. If this
+  is set, it is the parameter that controls the maximum XY size.
+- `XYPitch` is the printer raster scanline spacing in millimeters. It controls
+  writing resolution and TXT size, not the source model footprint.
+
+When `TargetMaxXY` is set, the final source-pixel pitch is derived from the
+target size and grid dimensions. For a square `335 x 335` height map with
+`TargetMaxXY = 1.005`, one source pixel becomes `1.005 / 335 = 0.003 mm`
+wide in the final print. The raster scanline spacing can still be finer, for
+example `XYPitch = 0.0004 mm`.
+
+`BaseHeight` is added inside `heightmap_to_segments` before generating raster
+scanlines. It is expressed in source units, so with a micron-valued CSV,
+`BaseHeight = 0.5` means a 0.5 um support base. If the input STL was already
+generated with a base, leave `BaseHeight = 0` to avoid adding it twice.
 
 ## Preview Before Printing
 

@@ -72,12 +72,13 @@ function tppdlw_gui()
     y = y - 42;
 
     % ---- Card: Slicing ----
-    y = card(leftPanel, y, '  SLICING', CLR_HDR, 170);
+    y = card(leftPanel, y, '  SLICING', CLR_HDR, 220);
     [S.ui.targetSize, y] = nf(leftPanel, 'Target XY size (mm)', 1.005,  [1e-4 1000], y);
     [S.ui.autoScale,  y] = cb(leftPanel, 'Auto-scale model to target size', true, y);
     [S.ui.layerHt,    y] = nf(leftPanel, 'Layer height   (mm)', 5e-4, [1e-7 10],   y);
     [S.ui.hatchSp,    y] = nf(leftPanel, 'Hatch spacing  (mm)', 4e-4, [1e-7 10],   y);
     [S.ui.pixelPitch, y] = nf(leftPanel, 'Source pixel pitch', 6, [1e-12 1e12], y);
+    [S.ui.baseHeight, y] = nf(leftPanel, 'Base height (source)', 0, [0 1e12], y);
     y = y - 6;
 
     % ---- Card: Writing Direction ----
@@ -267,6 +268,7 @@ function tppdlw_gui()
             'OffsetZ_mm',         S.ui.offsetZ.Value);
         cfg.Workflow = S.ui.workflow.Value;
         cfg.PixelPitch = S.ui.pixelPitch.Value;
+        cfg.BaseHeight = S.ui.baseHeight.Value;
     end
 
     % ---- Preview (no file write) ----
@@ -357,6 +359,7 @@ function tppdlw_gui()
         if hm
             S.ui.autoScale.Enable = 'off';
             S.ui.pixelPitch.Enable = 'on';
+            S.ui.baseHeight.Enable = 'on';
             S.ui.angleMode.Enable = 'off';
             S.ui.scanAngle.Enable = 'off';
             S.ui.angleIncr.Enable = 'off';
@@ -367,6 +370,7 @@ function tppdlw_gui()
         else
             S.ui.autoScale.Enable = 'on';
             S.ui.pixelPitch.Enable = 'off';
+            S.ui.baseHeight.Enable = 'off';
             S.ui.angleMode.Enable = 'on';
             S.ui.scanAngle.Enable = 'on';
             S.ui.angleIncr.Enable = 'on';
@@ -388,6 +392,7 @@ function tppdlw_gui()
             [segments, info] = heightmap_to_segments(hm.Height, ...
                 'SourcePitch', hm.SourcePitch, ...
                 'TargetMaxXY', S.ui.targetSize.Value, ...
+                'BaseHeight', S.ui.baseHeight.Value, ...
                 'HatchPitch_mm', S.ui.hatchSp.Value, ...
                 'LayerHeight_mm', S.ui.layerHt.Value, ...
                 'StageZConvention', true, ...
@@ -402,8 +407,9 @@ function tppdlw_gui()
                 write_segments(segments, outPath, 6);
             end
 
-            setStatus(sprintf('Height-map raster: %d x %d cells -> %d x %d grid, %d layers.', ...
-                info.SourceSize(2), info.SourceSize(1), info.OutputGridSize(2), info.OutputGridSize(1), info.LayerCount));
+            setStatus(sprintf('Height-map raster: %d x %d cells, base %.6g mm -> %d x %d grid, %d layers.', ...
+                info.SourceSize(2), info.SourceSize(1), info.BaseHeight_mm, ...
+                info.OutputGridSize(2), info.OutputGridSize(1), info.LayerCount));
         else
             if shouldWrite
                 cfg.OutputFile = outPath;
@@ -603,6 +609,8 @@ function tppdlw_gui()
                         hit = opts(strcmpi(opts, char(v)));
                         if ~isempty(hit), S.ui.workflow.Value = hit{1}; end
                     case 'pixelpitch',          S.ui.pixelPitch.Value = v;
+                    case {'baseheight','baseheight_source','baseheight_sourceunits'}
+                        S.ui.baseHeight.Value = v;
                     case 'layerheight_mm',      S.ui.layerHt.Value = v;
                     case 'hatchspacing_mm',     S.ui.hatchSp.Value = v;
                     case 'scanangle_deg',       S.ui.scanAngle.Value = v;

@@ -11,6 +11,8 @@ function [segments_mm, info] = heightmap_to_segments(height_map, varargin)
 % Name-value parameters:
 %   SourcePitch       : Source cell pitch in source units. Default 1.
 %   TargetMaxXY       : Final max XY span in mm. Scalar or [maxX maxY].
+%   BaseHeight        : Support base height in source units. Default 0.
+%   BaseHeight_mm     : Support base height in mm. Default [].
 %   HatchPitch_mm     : Output scanline pitch in mm. Default 0.0004.
 %   LayerHeight_mm    : Z layer thickness in mm. Default 0.0005.
 %   StageZConvention  : If true, output Z is negative. Default true.
@@ -41,7 +43,12 @@ function [segments_mm, info] = heightmap_to_segments(height_map, varargin)
 
     spanX = spanX0 * scaleToMm;
     spanY = spanY0 * scaleToMm;
-    height_mm = height_map * scaleToMm;
+    if isempty(cfg.BaseHeight_mm)
+        baseHeightMm = cfg.BaseHeight * scaleToMm;
+    else
+        baseHeightMm = cfg.BaseHeight_mm;
+    end
+    height_mm = height_map * scaleToMm + baseHeightMm;
 
     dx = cfg.HatchPitch_mm;
     dy = cfg.HatchPitch_mm;
@@ -59,7 +66,8 @@ function [segments_mm, info] = heightmap_to_segments(height_map, varargin)
     zMax = max(height_mm(:));
     if zMax <= cfg.Tolerance_mm
         segments_mm = zeros(0, 6);
-        info = make_info(nxSrc, nySrc, nxOut, nyOut, 0, 0, scaleToMm, spanX, spanY);
+        info = make_info(nxSrc, nySrc, nxOut, nyOut, 0, 0, scaleToMm, ...
+            spanX, spanY, sourcePitch, cfg.BaseHeight, baseHeightMm);
         return;
     end
 
@@ -114,12 +122,15 @@ function [segments_mm, info] = heightmap_to_segments(height_map, varargin)
     end
 
     segments_mm = vertcat(segments_all{1:outCell});
-    info = make_info(nxSrc, nySrc, nxOut, nyOut, nLayers, totalLayerRows, scaleToMm, spanX, spanY);
+    info = make_info(nxSrc, nySrc, nxOut, nyOut, nLayers, totalLayerRows, scaleToMm, ...
+        spanX, spanY, sourcePitch, cfg.BaseHeight, baseHeightMm);
 end
 
 function cfg = parse_inputs(varargin)
     cfg.SourcePitch = 1;
     cfg.TargetMaxXY = [];
+    cfg.BaseHeight = 0;
+    cfg.BaseHeight_mm = [];
     cfg.HatchPitch_mm = 0.0004;
     cfg.LayerHeight_mm = 0.0005;
     cfg.StageZConvention = true;
@@ -141,6 +152,10 @@ function cfg = parse_inputs(varargin)
                 cfg.SourcePitch = val;
             case 'targetmaxxy'
                 cfg.TargetMaxXY = val;
+            case {'baseheight','baseheight_source','baseheight_sourceunits'}
+                cfg.BaseHeight = val;
+            case {'baseheight_mm','baseheightmm'}
+                cfg.BaseHeight_mm = val;
             case 'hatchpitch_mm'
                 cfg.HatchPitch_mm = val;
             case 'layerheight_mm'
@@ -160,9 +175,24 @@ function cfg = parse_inputs(varargin)
         end
     end
 
+    if isempty(cfg.BaseHeight)
+        cfg.BaseHeight = 0;
+    end
     assert(cfg.HatchPitch_mm > 0, 'HatchPitch_mm must be > 0.');
     assert(cfg.LayerHeight_mm > 0, 'LayerHeight_mm must be > 0.');
     assert(isempty(cfg.TargetMaxXY) || all(cfg.TargetMaxXY(:) > 0), 'TargetMaxXY must be positive.');
+    assert(isnumeric(cfg.BaseHeight) && isscalar(cfg.BaseHeight) && ...
+        isfinite(cfg.BaseHeight) && cfg.BaseHeight >= 0, ...
+        'BaseHeight must be a non-negative scalar in source units.');
+    if ~isempty(cfg.BaseHeight_mm)
+        assert(isnumeric(cfg.BaseHeight_mm) && isscalar(cfg.BaseHeight_mm) && ...
+            isfinite(cfg.BaseHeight_mm) && cfg.BaseHeight_mm >= 0, ...
+            'BaseHeight_mm must be a non-negative scalar in mm.');
+        if cfg.BaseHeight > 0 && cfg.BaseHeight_mm > 0
+            error('heightmap_to_segments:baseHeightConflict', ...
+                'Use either BaseHeight or BaseHeight_mm, not both.');
+        end
+    end
     assert(any(strcmpi(cfg.CoordMode, {'edges','centers'})), 'CoordMode must be edges or centers.');
     cfg.Tolerance_mm = max(cfg.Tolerance_mm, 1e-15);
 end
@@ -278,7 +308,7 @@ function [segs, n] = append_segment(segs, n, row)
     segs(n, :) = row;
 end
 
-function info = make_info(nxSrc, nySrc, nxOut, nyOut, nLayers, totalLayerRows, scaleToMm, spanX, spanY)
+function info = make_info(nxSrc, nySrc, nxOut, nyOut, nLayers, totalLayerRows, scaleToMm, spanX, spanY, sourcePitch, baseHeightSource, baseHeightMm)
     info = struct();
     info.SourceSize = [nySrc nxSrc];
     info.OutputGridSize = [nyOut nxOut];
@@ -286,4 +316,8 @@ function info = make_info(nxSrc, nySrc, nxOut, nyOut, nLayers, totalLayerRows, s
     info.LayerRows = totalLayerRows;
     info.ScaleToMm = scaleToMm;
     info.SpanXY_mm = [spanX spanY];
+    info.SourcePitch = sourcePitch;
+    info.SourcePitch_mm = sourcePitch * scaleToMm;
+    info.BaseHeightSource = baseHeightSource;
+    info.BaseHeight_mm = baseHeightMm;
 end

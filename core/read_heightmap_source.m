@@ -7,7 +7,9 @@ function hm = read_heightmap_source(source_path, varargin)
 %   Height       : Ny-by-Nx height matrix in source numeric units
 %   SourcePitch  : [xPitch yPitch] in the same source units
 %   Units        : Unit label from source/header when available
-%   BaseHeight   : Base height from STL header when available
+%   BaseHeight   : Base height from STL header when available. CSV
+%                  AddBaseHeight is retained only for older callers; new
+%                  raster exports should add base in heightmap_to_segments.
 %   SourceType   : 'csv' or 'stl'
 
     cfg = parse_inputs(varargin{:});
@@ -33,10 +35,14 @@ function hm = read_heightmap_source(source_path, varargin)
                 sourcePitch = [sourcePitch sourcePitch];
             end
             hm = struct();
-            hm.Height = height + cfg.AddBaseHeight;
+            hm.Height = height;
             hm.SourcePitch = sourcePitch;
             hm.Units = cfg.Units;
-            hm.BaseHeight = cfg.AddBaseHeight;
+            hm.BaseHeight = [];
+            if cfg.AddBaseHeight > 0
+                hm.Height = hm.Height + cfg.AddBaseHeight;
+                hm.BaseHeight = cfg.AddBaseHeight;
+            end
             hm.SourceType = 'csv';
             hm.SourcePath = source_path;
         otherwise

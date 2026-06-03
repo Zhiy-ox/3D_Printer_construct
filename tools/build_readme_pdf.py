@@ -259,6 +259,7 @@ run('heightmap_raster_export.m')
             [
                 "Set <font name='Courier'>HeightMapPath</font> to your input height-map STL or CSV file.",
                 "Set <font name='Courier'>OutTxt</font> to the TXT file you want to create.",
+                "Set <font name='Courier'>BaseHeight</font> if the source CSV needs a support base; leave it at 0 if the STL already includes one.",
                 "Start with coarse <font name='Courier'>XYPitch</font> and <font name='Courier'>DZ</font> for preview runs, then restore final values for production.",
                 "Read the console summary. Height-map raster export should not report odd contour-crossing warnings.",
             ],
@@ -297,6 +298,7 @@ run('heightmap_raster_export.m')
                 ("XYPitch", "Spacing between adjacent raster scanlines.", "Larger for preview, final value for production."),
                 ("DZ", "Layer thickness / vertical slicing step.", "Larger for preview, final value for production."),
                 ("PixelPitch", "Source pixel pitch for CSV input.", "STL can read this from the generated header."),
+                ("BaseHeight", "Support base height in source units.", "Use 0 for STL that already includes a base; use 0.5 for a micron-valued CSV needing a 0.5 um base."),
                 ("WoodpileMode", "Alternates horizontal and vertical writing by layer.", "Keep true for orthogonal resampling."),
                 ("Serpentine", "Alternates scan direction to reduce travel.", "Usually true."),
                 ("CoordMode", "Uses voxel edges or grid centers for endpoints.", "Use edges for full-width base rows."),
@@ -308,7 +310,21 @@ run('heightmap_raster_export.m')
         )
     )
 
-    story.append(p("5. Preview and Quality Checks", styles["H1Custom"]))
+    story.append(p("5. Size and Pixel Pitch", styles["H1Custom"]))
+    story.append(
+        bullets(
+            [
+                "<font name='Courier'>PixelPitch</font> describes the original height-map pixel spacing in source units, such as 6 for a 6 um CSV pixel.",
+                "<font name='Courier'>TargetMaxXY</font> controls the final maximum XY footprint in millimeters.",
+                "<font name='Courier'>XYPitch</font> is the printer raster scanline spacing in millimeters. It controls write density and TXT size, not the source model footprint.",
+                "If <font name='Courier'>TargetMaxXY</font> is set, the final source-pixel pitch is derived from target size and grid count. For a 335 x 335 map at 1.005 mm, one source pixel becomes 1.005 / 335 = 0.003 mm.",
+                "<font name='Courier'>BaseHeight</font> is added in <font name='Courier'>heightmap_to_segments</font> before raster scanlines are generated, so it creates full support-base scanlines across the height-map footprint.",
+            ],
+            styles,
+        )
+    )
+
+    story.append(p("6. Preview and Quality Checks", styles["H1Custom"]))
     story.append(p("After generating a TXT file, preview a layer before printing:", styles["BodyCustom"]))
     story.append(
         code(
@@ -343,7 +359,7 @@ preview_3d(segments, 'EveryN', 2)
     story.append(
         KeepTogether(
             [
-                p("6. Troubleshooting", styles["H1Custom"]),
+                p("7. Troubleshooting", styles["H1Custom"]),
                 two_col_table(
                     [
                         ("Long lines across empty regions", "Usually caused by using contour slicing on height-map data. Use height-map raster export first."),
@@ -358,7 +374,7 @@ preview_3d(segments, 'EveryN', 2)
         )
     )
 
-    story.append(p("7. Recommended Workflow", styles["H1Custom"]))
+    story.append(p("8. Recommended Workflow", styles["H1Custom"]))
     story.append(
         bullets(
             [
@@ -372,7 +388,7 @@ preview_3d(segments, 'EveryN', 2)
         )
     )
 
-    story.append(p("8. Quick Checklist Before Printing", styles["H1Custom"]))
+    story.append(p("9. Quick Checklist Before Printing", styles["H1Custom"]))
     story.append(
         two_col_table(
             [
