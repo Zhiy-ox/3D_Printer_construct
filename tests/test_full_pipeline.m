@@ -67,14 +67,26 @@ xyDiff = sqrt((transSegs(:,4)-transSegs(:,1)).^2 + (transSegs(:,5)-transSegs(:,2
 assert(all(xyDiff < 1e-10), 'Z-transitions must have X1==X2, Y1==Y2');
 fprintf('  PASS: Z-transitions have constant XY.\n');
 
-% Z-transitions should go upward
+% Z-transitions should follow the configured output Z convention.
 zDiff = transSegs(:,6) - transSegs(:,3);
-assert(all(zDiff > 0), 'Z-transitions should go upward (z2 > z1)');
-fprintf('  PASS: Z-transitions are upward.\n');
+if cfg.StageZConvention
+    assert(all(zDiff < 0), ...
+        'Negative stage Z convention should move transitions toward smaller Z.');
+    fprintf('  PASS: Z-transitions follow negative stage convention.\n');
+else
+    assert(all(zDiff > 0), ...
+        'Positive Z convention should move transitions toward larger Z.');
+    fprintf('  PASS: Z-transitions follow positive Z convention.\n');
+end
 
 %% Step 5: Verify alternating scan direction
 fprintf('\n[5] Checking alternating scan direction...\n');
 uniqueZ = unique(data(scanMask, 3));
+if cfg.StageZConvention
+    uniqueZ = sort(uniqueZ, 'descend');
+else
+    uniqueZ = sort(uniqueZ, 'ascend');
+end
 nLayers = numel(uniqueZ);
 fprintf('  Layers detected: %d\n', nLayers);
 
@@ -121,8 +133,26 @@ assert(max(yAll) - min(yAll) <= cfg.TargetSize_mm * 1.1, ...
     'Y span should be <= TargetSize');
 fprintf('  PASS: Coordinates within expected range.\n');
 
-%% Step 7: Visualize
-fprintf('\n[7] Generating preview...\n');
+%% Step 7: Verify positive-Z output option
+fprintf('\n[7] Checking positive Z output option...\n');
+positiveOutFile = fullfile(tempdir, 'test_cube_segments_positive_z.txt');
+cfgPositive = cfg;
+cfgPositive.OutputFile = positiveOutFile;
+cfgPositive.StageZConvention = false;
+positiveSegments = tppdlw_process(cfgPositive);
+positiveScanMask = abs(positiveSegments(:,3) - positiveSegments(:,6)) < 1e-10;
+positiveTransMask = ~positiveScanMask;
+
+assert(all(positiveSegments(positiveScanMask, 3) > 0), ...
+    'StageZConvention=false should keep scan Z values positive.');
+positiveTrans = positiveSegments(positiveTransMask, :);
+positiveZDiff = positiveTrans(:,6) - positiveTrans(:,3);
+assert(all(positiveZDiff > 0), ...
+    'StageZConvention=false should move transitions toward larger Z.');
+fprintf('  PASS: StageZConvention=false outputs positive scan and transition Z.\n');
+
+%% Step 8: Visualize
+fprintf('\n[8] Generating preview...\n');
 preview_toolpath(segments, 'Mode', '2d', 'Layer', 1);
 title('Test Pipeline: Layer 1');
 
@@ -135,6 +165,7 @@ end
 %% Cleanup
 delete(cubeStl);
 delete(outFile);
+delete(positiveOutFile);
 
 fprintf('\n=== All pipeline tests passed! ===\n\n');
 
